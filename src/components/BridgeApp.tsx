@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import EmbedPlayer, { type EmbedSource } from "@/components/EmbedPlayer";
 import { AppleMusicIcon, SpotifyIcon } from "@/components/icons";
 import { readClientCache, writeClientCache } from "@/lib/client-cache";
+import { embedUrlForService } from "@/lib/embed";
 import { buildShareUrl } from "@/lib/share-url";
 import type {
   CachedPlaylist,
@@ -11,6 +13,7 @@ import type {
   PlaylistMetadata,
   ResolveResult,
   ResolvedPlaylistTrack,
+  Service,
 } from "@/lib/types";
 
 const PLAYLIST_USE_STREAM = "PLAYLIST_USE_STREAM";
@@ -99,12 +102,97 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
   );
   const [progress, setProgress] = useState({ resolved: 0, total: 0 });
   const [copied, setCopied] = useState(false);
+  const [playingTrack, setPlayingTrack] =
+    useState<ResolvedPlaylistTrack | null>(null);
+  const [playPreferred, setPlayPreferred] = useState<Service | undefined>();
 
   const shareUrl = result
     ? buildShareUrl(result.sourceUrl)
     : playlistMeta
       ? buildShareUrl(playlistMeta.sourceUrl)
       : "";
+
+  const singleEmbedSources = useMemo((): EmbedSource[] => {
+    if (!result) return [];
+    const sources: EmbedSource[] = [];
+    if (
+      result.spotify &&
+      result.spotify.quality !== "search" &&
+      embedUrlForService(result.spotify.url, "spotify")
+    ) {
+      sources.push({
+        service: "spotify",
+        url: result.spotify.url,
+        linkType: result.linkType,
+      });
+    }
+    if (
+      result.apple &&
+      result.apple.quality !== "search" &&
+      embedUrlForService(result.apple.url, "apple")
+    ) {
+      sources.push({
+        service: "apple",
+        url: result.apple.url,
+        linkType: result.linkType,
+      });
+    }
+    return sources;
+  }, [result]);
+
+  const playlistEmbedSources = useMemo((): EmbedSource[] => {
+    if (!playlistMeta) return [];
+
+    if (playingTrack) {
+      const sources: EmbedSource[] = [];
+      if (
+        playingTrack.spotify &&
+        playingTrack.spotify.quality !== "search" &&
+        embedUrlForService(playingTrack.spotify.url, "spotify")
+      ) {
+        sources.push({
+          service: "spotify",
+          url: playingTrack.spotify.url,
+          linkType: "track",
+          label: "Spotify",
+        });
+      }
+      if (
+        playingTrack.apple &&
+        playingTrack.apple.quality !== "search" &&
+        embedUrlForService(playingTrack.apple.url, "apple")
+      ) {
+        sources.push({
+          service: "apple",
+          url: playingTrack.apple.url,
+          linkType: "track",
+          label: "Apple Music",
+        });
+      }
+      if (sources.length > 0) return sources;
+    }
+
+    const sources: EmbedSource[] = [];
+    if (playlistMeta.sourceService === "spotify") {
+      sources.push({
+        service: "spotify",
+        url: playlistMeta.sourceUrl,
+        linkType: "playlist",
+      });
+    } else {
+      sources.push({
+        service: "apple",
+        url: playlistMeta.sourceUrl,
+        linkType: "playlist",
+      });
+    }
+    return sources;
+  }, [playlistMeta, playingTrack]);
+
+  const playTrack = (track: ResolvedPlaylistTrack, service: Service) => {
+    setPlayingTrack(track);
+    setPlayPreferred(service);
+  };
 
   const applyCachedPlaylist = useCallback((cached: CachedPlaylist) => {
     setPlaylistMeta({ ...cached.metadata, cached: true });
@@ -198,6 +286,8 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
       setResult(null);
       setPlaylistMeta(null);
       setPlaylistTracks([]);
+      setPlayingTrack(null);
+      setPlayPreferred(undefined);
 
       try {
         const cacheKey = `resolve:${target}`;
@@ -357,6 +447,14 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
             </div>
           </div>
 
+          {singleEmbedSources.length > 0 && (
+            <EmbedPlayer
+              sources={singleEmbedSources}
+              preferred={result.sourceService}
+              className="mt-5 border-t border-white/10 pt-4"
+            />
+          )}
+
           {shareUrl && (
             <div className="mt-5 border-t border-white/10 pt-4">
               <p className="mb-2 text-xs text-zinc-500">Share link</p>
@@ -417,46 +515,97 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
             />
           </div>
 
+          {playlistEmbedSources.length > 0 && (
+            <div className="mb-4">
+              <EmbedPlayer
+                sources={playlistEmbedSources}
+                preferred={playPreferred ?? playlistMeta.sourceService}
+              />
+              {playingTrack && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlayingTrack(null);
+                    setPlayPreferred(undefined);
+                  }}
+                  className="mt-2 text-xs text-zinc-500 underline-offset-2 hover:text-zinc-300 hover:underline"
+                >
+                  Back to full playlist player
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="max-h-96 space-y-2 overflow-y-auto overscroll-contain">
-            {playlistTracks.map((track, i) => (
-              <div
-                key={`${track.title}-${i}`}
-                className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">
-                    {track.title}
-                  </p>
-                  <p className="truncate text-xs text-zinc-500">
-                    {track.artist}
-                  </p>
+            {playlistTracks.map((track, i) => {
+              const isActive =
+                playingTrack?.title === track.title &&
+                playingTrack?.artist === track.artist;
+              const canPlaySpotify =
+                track.spotify &&
+                track.spotify.quality !== "search" &&
+                embedUrlForService(track.spotify.url, "spotify");
+              const canPlayApple =
+                track.apple &&
+                track.apple.quality !== "search" &&
+                embedUrlForService(track.apple.url, "apple");
+
+              return (
+                <div
+                  key={`${track.title}-${i}`}
+                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${
+                    isActive ? "bg-white/10 ring-1 ring-white/15" : "bg-white/5"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white">
+                      {track.title}
+                    </p>
+                    <p className="truncate text-xs text-zinc-500">
+                      {track.artist}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {track.spotify && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          canPlaySpotify
+                            ? playTrack(track, "spotify")
+                            : window.open(track.spotify!.url, "_blank")
+                        }
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1db954]/20 text-[#1ed760] hover:bg-[#1db954]/30"
+                        title={
+                          canPlaySpotify
+                            ? "Play on Spotify"
+                            : "Open on Spotify"
+                        }
+                      >
+                        <SpotifyIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                    {track.apple && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          canPlayApple
+                            ? playTrack(track, "apple")
+                            : window.open(track.apple!.url, "_blank")
+                        }
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fc3c44]/20 text-[#ff375f] hover:bg-[#fc3c44]/30"
+                        title={
+                          canPlayApple
+                            ? "Play on Apple Music"
+                            : "Open on Apple Music"
+                        }
+                      >
+                        <AppleMusicIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {track.spotify && (
-                    <a
-                      href={track.spotify.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1db954]/20 text-[#1ed760] hover:bg-[#1db954]/30"
-                      title="Open on Spotify"
-                    >
-                      <SpotifyIcon className="h-4 w-4" />
-                    </a>
-                  )}
-                  {track.apple && (
-                    <a
-                      href={track.apple.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fc3c44]/20 text-[#ff375f] hover:bg-[#fc3c44]/30"
-                      title="Open on Apple Music"
-                    >
-                      <AppleMusicIcon className="h-4 w-4" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {shareUrl && (

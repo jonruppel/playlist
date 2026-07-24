@@ -8,6 +8,7 @@ Convert Spotify and Apple Music links to each other — songs, albums, artists, 
 - Supports tracks, albums, artists, and playlists
 - Playlist resolution streams results progressively (up to 100 tracks)
 - Shareable canonical URLs via `/link?url=...`
+- In-browser playback via official Spotify & Apple Music embeds (sign-in for full play)
 - Dark glassmorphism UI with Spotify × Apple Music aesthetics
 - Quality badges: `exact`, `search`, or `fallback`
 
