@@ -17,6 +17,10 @@ interface NextDataTrack {
   uri?: string;
   title?: string;
   subtitle?: string;
+  audioPreview?: {
+    url?: string;
+    format?: string;
+  };
 }
 
 interface NextDataEntity {
@@ -94,6 +98,7 @@ function tracksFromNextData(entity: NextDataEntity): PlaylistTrack[] {
       title: track.title ?? "Unknown",
       artist: track.subtitle ?? "Unknown Artist",
       sourceUrl: id ? `https://open.spotify.com/track/${id}` : undefined,
+      previewUrl: track.audioPreview?.url,
     };
   });
 }

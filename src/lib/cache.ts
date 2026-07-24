@@ -44,7 +44,7 @@ export async function getCachedResolve(
       resolveMemory.set(key, resolved);
       return resolved;
     },
-    ["resolve", key],
+    ["resolve-v2", key],
     { revalidate: CACHE_TTL_SECONDS, tags: [`resolve:${key}`] },
   )();
 
@@ -62,7 +62,7 @@ function getSharedPlaylistCache(key: string): () => Promise<CachedPlaylist> {
         }
         return data;
       },
-      ["playlist", key],
+      ["playlist-v2", key],
       { revalidate: CACHE_TTL_SECONDS, tags: [`playlist:${key}`] },
     );
     playlistCacheFns.set(key, fn);

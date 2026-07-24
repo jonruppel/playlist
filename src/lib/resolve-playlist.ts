@@ -4,6 +4,7 @@ import {
   streamCachedPlaylist,
   getCachedResolve,
 } from "./cache";
+import { findPreviewUrl } from "./itunes";
 import { parseMusicUrl } from "./parse-url";
 import { fetchApplePlaylist } from "./playlist/apple";
 import { fetchSpotifyPlaylist } from "./playlist/spotify";
@@ -53,6 +54,8 @@ async function* resolvePlaylistUncached(
       let spotify: PlatformLink | undefined;
       let apple: PlatformLink | undefined;
       let linkQuality: LinkQuality = "fallback";
+      let previewUrl = track.previewUrl;
+      let artwork: string | undefined;
 
       try {
         if (track.sourceUrl) {
@@ -61,6 +64,7 @@ async function* resolvePlaylistUncached(
             spotify = result.spotify;
             apple = result.apple;
             linkQuality = result.linkQuality;
+            artwork = result.artwork;
           } catch {
             const result = await resolveTrackByMetadata(
               track.title,
@@ -85,15 +89,22 @@ async function* resolvePlaylistUncached(
         linkQuality = "fallback";
       }
 
+      if (!previewUrl) {
+        previewUrl = await findPreviewUrl(track.title, track.artist);
+      }
+
       resolved += 1;
       yield {
         type: "track",
         data: {
           title: track.title,
           artist: track.artist,
+          sourceUrl: track.sourceUrl,
           spotify,
           apple,
           linkQuality,
+          previewUrl,
+          artwork,
         },
       };
       yield { type: "progress", data: { resolved, total } };

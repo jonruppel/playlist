@@ -32,6 +32,8 @@ export interface PlaylistTrack {
   title: string;
   artist: string;
   sourceUrl?: string;
+  /** ~30s preview MP3 when available (Spotify embed / iTunes) */
+  previewUrl?: string;
 }
 
 export interface PlaylistMetadata {
@@ -52,6 +54,7 @@ export interface ResolvedPlaylistTrack extends PlaylistTrack {
   spotify?: PlatformLink;
   apple?: PlatformLink;
   linkQuality: LinkQuality;
+  artwork?: string;
 }
 
 export type PlaylistEvent =

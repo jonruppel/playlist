@@ -15,10 +15,13 @@ interface iTunesResult {
   trackViewUrl?: string;
   collectionViewUrl?: string;
   artistViewUrl?: string;
+  previewUrl?: string;
   trackId?: number;
   collectionId?: number;
   artistId?: number;
 }
+
+export type { iTunesResult };
 
 interface iTunesSearchResponse {
   resultCount: number;
@@ -86,14 +89,24 @@ export function appleUrlFromSearch(title: string, artist?: string): string {
 export async function findAppleForTrack(
   title: string,
   artist?: string,
-): Promise<{ url: string; artwork?: string } | null> {
+): Promise<{ url: string; artwork?: string; previewUrl?: string } | null> {
   const term = artist ? `${title} ${artist}` : title;
   const result = await searchItunes(term, "song");
   if (!result?.trackViewUrl) return null;
   return {
     url: result.trackViewUrl,
     artwork: artworkFrom100(result.artworkUrl100),
+    previewUrl: result.previewUrl,
   };
+}
+
+export async function findPreviewUrl(
+  title: string,
+  artist?: string,
+): Promise<string | undefined> {
+  const term = artist ? `${title} ${artist}` : title;
+  const result = await searchItunes(term, "song");
+  return result?.previewUrl;
 }
 
 export async function findSpotifyForTrack(
