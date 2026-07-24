@@ -115,25 +115,19 @@ function parseAppleUrl(url: string, parsed: URL): ParsedUrl {
     };
   }
 
-  const playlistIndex = parts.indexOf("playlist");
-  if (playlistIndex !== -1 && parts[playlistIndex + 1]) {
-    const id = parts[playlistIndex + 1].split("?")[0];
-    return {
-      service: "apple",
-      linkType: "playlist",
-      url,
-      id,
-    };
-  }
-
-  if (parts.some((p) => p.startsWith("pl."))) {
-    const id = parts.find((p) => p.startsWith("pl."))!;
-    return {
-      service: "apple",
-      linkType: "playlist",
-      url,
-      id,
-    };
+  const playlistId = parts.find((p) => p.startsWith("pl."));
+  if (playlistId || parts.includes("playlist")) {
+    const id = (playlistId ?? parts[parts.indexOf("playlist") + 1])?.split(
+      "?",
+    )[0];
+    if (id) {
+      return {
+        service: "apple",
+        linkType: "playlist",
+        url,
+        id,
+      };
+    }
   }
 
   throw new UrlParseError("Could not parse Apple Music URL");
