@@ -11,18 +11,15 @@ export function SpotifyIcon({ className }: { className?: string }) {
   );
 }
 
-/**
- * Apple Music mark via CSS mask + static SVG asset.
- * Avoids fragile bezier paths that break at small icon sizes.
- */
+/** Classic Apple logo PNG, tinted via currentColor (Apple Music pink). */
 export function AppleMusicIcon({ className }: { className?: string }) {
   return (
     <span
       aria-hidden
       className={`inline-block shrink-0 bg-current ${className ?? "h-6 w-6"}`}
       style={{
-        maskImage: "url(/icons/apple-music.svg)",
-        WebkitMaskImage: "url(/icons/apple-music.svg)",
+        maskImage: "url(/icons/apple.png)",
+        WebkitMaskImage: "url(/icons/apple.png)",
         maskRepeat: "no-repeat",
         WebkitMaskRepeat: "no-repeat",
         maskPosition: "center",
