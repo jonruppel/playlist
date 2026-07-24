@@ -4,7 +4,6 @@ import {
   streamCachedPlaylist,
   getCachedResolve,
 } from "./cache";
-import { findPreviewUrl } from "./itunes";
 import { parseMusicUrl } from "./parse-url";
 import { fetchApplePlaylist } from "./playlist/apple";
 import { fetchSpotifyPlaylist } from "./playlist/spotify";
@@ -56,6 +55,8 @@ async function* resolvePlaylistUncached(
       let linkQuality: LinkQuality = "fallback";
       let previewUrl = track.previewUrl;
       let artwork: string | undefined;
+      let artist = track.artist;
+      let title = track.title;
 
       try {
         if (track.sourceUrl) {
@@ -65,10 +66,12 @@ async function* resolvePlaylistUncached(
             apple = result.apple;
             linkQuality = result.linkQuality;
             artwork = result.artwork;
+            if (result.artist) artist = result.artist;
+            if (result.title) title = result.title;
           } catch {
             const result = await resolveTrackByMetadata(
               track.title,
-              track.artist,
+              track.artist === "Unknown Artist" ? "" : track.artist,
               parsed.service,
             );
             spotify = result.spotify;
@@ -78,7 +81,7 @@ async function* resolvePlaylistUncached(
         } else {
           const result = await resolveTrackByMetadata(
             track.title,
-            track.artist,
+            track.artist === "Unknown Artist" ? "" : track.artist,
             parsed.service,
           );
           spotify = result.spotify;
@@ -89,16 +92,29 @@ async function* resolvePlaylistUncached(
         linkQuality = "fallback";
       }
 
-      if (!previewUrl) {
-        previewUrl = await findPreviewUrl(track.title, track.artist);
+      // Apple Music schema often omits byArtist — fill from iTunes
+      if (!previewUrl || !artist || artist === "Unknown Artist" || !artwork) {
+        const itunes = await import("./itunes").then((m) =>
+          m.searchItunes(
+            artist && artist !== "Unknown Artist" ? `${title} ${artist}` : title,
+            "song",
+          ),
+        );
+        if (itunes?.artistName && (!artist || artist === "Unknown Artist")) {
+          artist = itunes.artistName;
+        }
+        if (!previewUrl && itunes?.previewUrl) previewUrl = itunes.previewUrl;
+        if (!artwork && itunes?.artworkUrl100) {
+          artwork = itunes.artworkUrl100.replace("100x100bb", "600x600bb");
+        }
       }
 
       resolved += 1;
       yield {
         type: "track",
         data: {
-          title: track.title,
-          artist: track.artist,
+          title,
+          artist,
           sourceUrl: track.sourceUrl,
           spotify,
           apple,
