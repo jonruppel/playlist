@@ -11,17 +11,25 @@ export function SpotifyIcon({ className }: { className?: string }) {
   );
 }
 
-/** Apple Music double-note mark (notes only — container supplies the background). */
+/**
+ * Apple Music mark via CSS mask + static SVG asset.
+ * Avoids fragile bezier paths that break at small icon sizes.
+ */
 export function AppleMusicIcon({ className }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="7 5 13 13"
-      fill="currentColor"
+    <span
       aria-hidden
-    >
-      <path d="M9.99 15.992c-.69 0-1.25-.56-1.25-1.25V8.952c0-.69.56-1.25 1.25-1.25s1.25.56 1.25 1.25v5.79c0 .69-.56 1.25-1.25 1.25z" />
-      <path d="M17.49 15.992c-.69 0-1.25-.56-1.25-1.25V7.442l-4.08 1.24v6.06c0 .69-.56 1.25-1.25 1.25s-1.25-.56-1.25-1.25V6.152c0-.53.34-.997.845-1.157l5.33-1.62c.41-.125.845.177.845.607v9.75c0 .69-.56 1.25-1.25 1.25z" />
-    </svg>
+      className={`inline-block shrink-0 bg-current ${className ?? "h-6 w-6"}`}
+      style={{
+        maskImage: "url(/icons/apple-music.svg)",
+        WebkitMaskImage: "url(/icons/apple-music.svg)",
+        maskRepeat: "no-repeat",
+        WebkitMaskRepeat: "no-repeat",
+        maskPosition: "center",
+        WebkitMaskPosition: "center",
+        maskSize: "contain",
+        WebkitMaskSize: "contain",
+      }}
+    />
   );
 }
