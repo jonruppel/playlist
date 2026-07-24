@@ -17,6 +17,7 @@ export interface ResolveResult {
   spotify?: PlatformLink;
   apple?: PlatformLink;
   linkQuality: LinkQuality;
+  cached?: boolean;
 }
 
 export interface ParsedUrl {
@@ -39,6 +40,12 @@ export interface PlaylistMetadata {
   totalTracks: number;
   sourceService: Service;
   sourceUrl: string;
+  cached?: boolean;
+}
+
+export interface CachedPlaylist {
+  metadata: PlaylistMetadata;
+  tracks: ResolvedPlaylistTrack[];
 }
 
 export interface ResolvedPlaylistTrack extends PlaylistTrack {

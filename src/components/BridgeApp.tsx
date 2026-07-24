@@ -1,33 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AppleMusicIcon, SpotifyIcon } from "@/components/icons";
+import { readClientCache, writeClientCache } from "@/lib/client-cache";
+import { buildShareUrl } from "@/lib/share-url";
 import type {
+  CachedPlaylist,
   LinkQuality,
   PlaylistEvent,
   PlaylistMetadata,
   ResolveResult,
   ResolvedPlaylistTrack,
 } from "@/lib/types";
-import { buildShareUrl } from "@/lib/share-url";
 
 const PLAYLIST_USE_STREAM = "PLAYLIST_USE_STREAM";
-
-function SpotifyIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-    </svg>
-  );
-}
-
-function AppleMusicIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M23.994 6.124a9.23 9.23 0 00-.24-2.065c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 00-1.877-.726 10.207 10.207 0 00-1.564-.15c-.04-.003-.083-.01-.124-.013H5.986c-.152.01-.303.017-.455.026-.747.043-1.49.123-2.193.4-1.336.53-2.3 1.452-2.865 2.78-.192.448-.292.925-.363 1.408-.056.392-.088.785-.1 1.18 0 .032-.007.062-.01.093v12.223c.01.14.017.283.027.424.05.815.154 1.624.497 2.373.65 1.42 1.738 2.353 3.234 2.801.42.127.856.187 1.293.228.555.053 1.11.06 1.667.06h11.03a12.5 12.5 0 001.57-.1c.822-.106 1.596-.35 2.295-.77.98-.59 1.7-1.41 2.117-2.494a5.5 5.5 0 00.285-1.1c.1-.51.157-1.026.185-1.543.01-.19.028-.38.028-.57V6.124zm-3.335 12.832c-.02.176-.043.353-.07.53-.065.42-.18.828-.34 1.22-.49 1.22-1.31 2.03-2.55 2.51-.42.17-.86.27-1.31.33-.57.08-1.15.12-1.74.12H7.05c-.55 0-1.1-.04-1.65-.12a4.7 4.7 0 01-1.35-.35c-1.15-.45-2.01-1.25-2.57-2.36-.23-.45-.37-.93-.46-1.42-.08-.45-.12-.9-.12-1.36V8.735c.01-.57.05-1.14.15-1.7.07-.42.18-.83.33-1.23.48-1.24 1.28-2.1 2.48-2.64.42-.19.86-.31 1.31-.38.48-.08.97-.12 1.46-.12h9.28c.52 0 1.04.04 1.55.12.48.08.95.22 1.39.44 1.11.56 1.87 1.42 2.3 2.58.14.4.23.81.28 1.23.06.47.09.94.1 1.42v9.53c-.01.19-.03.38-.05.57zM8.02 6.66c.19-.01.38-.02.57-.02h6.82c.19 0 .38.01.57.02v.01c.38.02.75.08 1.11.18.73.2 1.28.62 1.62 1.3.17.35.25.73.28 1.12v8.18c0 .39-.08.77-.25 1.12-.34.68-.89 1.1-1.62 1.3-.36.1-.73.16-1.11.18-.19.01-.38.02-.57.02H8.59c-.19 0-.38-.01-.57-.02-.38-.02-.75-.08-1.11-.18-.73-.2-1.28-.62-1.62-1.3a2.5 2.5 0 01-.28-1.12V9.45c0-.39.08-.77.25-1.12.34-.68.89-1.1 1.62-1.3.36-.1.73-.16 1.11-.18v-.01z" />
-      <path d="M15.62 11.38l-3.3 1.01v4.47l3.3-1.01v-4.47zM12.32 9.5L9.02 10.5v4.47l3.3-1.01V9.5z" />
-    </svg>
-  );
-}
 
 function QualityBadge({ quality }: { quality: LinkQuality }) {
   const styles: Record<LinkQuality, string> = {
@@ -45,23 +31,54 @@ function QualityBadge({ quality }: { quality: LinkQuality }) {
   );
 }
 
+function Artwork({
+  src,
+  alt,
+  size = "md",
+}: {
+  src?: string;
+  alt: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  if (!src) return null;
+
+  const sizes = {
+    sm: "h-14 w-14 rounded-lg",
+    md: "h-20 w-20 sm:h-24 sm:w-24 rounded-xl",
+    lg: "h-16 w-16 sm:h-20 sm:w-20 rounded-xl",
+  };
+
+  return (
+    <div className={`artwork-frame ${sizes[size]}`}>
+      <img src={src} alt={alt} loading="lazy" decoding="async" />
+    </div>
+  );
+}
+
 function Logo() {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1db954]/20 text-[#1ed760]">
-        <SpotifyIcon className="h-6 w-6" />
+    <div className="flex items-center gap-2.5 sm:gap-3">
+      <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#1db954]/20 text-[#1ed760]">
+        <SpotifyIcon className="h-5 w-5 sm:h-6 sm:w-6" />
       </div>
       <div className="flex flex-col items-center gap-1 px-1">
-        <div className="h-0.5 w-10 rounded-full bg-gradient-to-r from-[#1ed760] to-[#ff375f]" />
+        <div className="h-0.5 w-8 sm:w-10 rounded-full bg-gradient-to-r from-[#1ed760] to-[#ff375f]" />
         <div className="flex gap-1">
           <div className="h-1.5 w-1.5 rounded-full bg-[#1ed760]" />
           <div className="h-1.5 w-1.5 rounded-full bg-[#ff375f]" />
         </div>
       </div>
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#fc3c44]/20 text-[#ff375f]">
-        <AppleMusicIcon className="h-6 w-6" />
+      <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#fc3c44]/20 text-[#ff375f]">
+        <AppleMusicIcon className="h-5 w-5 sm:h-6 sm:w-6" />
       </div>
     </div>
+  );
+}
+
+function CacheNote({ cached }: { cached?: boolean }) {
+  if (!cached) return null;
+  return (
+    <p className="text-xs text-zinc-500">Loaded from saved result</p>
   );
 }
 
@@ -89,51 +106,84 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
       ? buildShareUrl(playlistMeta.sourceUrl)
       : "";
 
-  const resolvePlaylist = useCallback(async (url: string) => {
-    setPlaylistMeta(null);
-    setPlaylistTracks([]);
-    setProgress({ resolved: 0, total: 0 });
-    setResult(null);
-
-    const response = await fetch("/api/resolve/playlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+  const applyCachedPlaylist = useCallback((cached: CachedPlaylist) => {
+    setPlaylistMeta({ ...cached.metadata, cached: true });
+    setPlaylistTracks(cached.tracks);
+    setProgress({
+      resolved: cached.tracks.length,
+      total: cached.metadata.totalTracks,
     });
+    setResult(null);
+  }, []);
 
-    if (!response.ok || !response.body) {
-      throw new Error("Failed to resolve playlist");
-    }
+  const resolvePlaylist = useCallback(
+    async (url: string) => {
+      const cacheKey = `playlist:${url}`;
+      const cached = readClientCache<CachedPlaylist>(cacheKey);
+      if (cached) {
+        applyCachedPlaylist(cached);
+        return;
+      }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+      setPlaylistMeta(null);
+      setPlaylistTracks([]);
+      setProgress({ resolved: 0, total: 0 });
+      setResult(null);
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      const response = await fetch("/api/resolve/playlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+      if (!response.ok || !response.body) {
+        throw new Error("Failed to resolve playlist");
+      }
 
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const event = JSON.parse(line) as PlaylistEvent;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const collected: CachedPlaylist = {
+        metadata: {
+          title: "",
+          totalTracks: 0,
+          sourceService: "spotify",
+          sourceUrl: url,
+        },
+        tracks: [],
+      };
 
-        if (event.type === "start") {
-          setPlaylistMeta(event.data);
-          setProgress({ resolved: 0, total: event.data.totalTracks });
-        } else if (event.type === "track") {
-          setPlaylistTracks((prev) => [...prev, event.data]);
-        } else if (event.type === "progress") {
-          setProgress(event.data);
-        } else if (event.type === "error") {
-          throw new Error(event.data.message);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as PlaylistEvent;
+
+          if (event.type === "start") {
+            collected.metadata = event.data;
+            setPlaylistMeta(event.data);
+            setProgress({ resolved: 0, total: event.data.totalTracks });
+          } else if (event.type === "track") {
+            collected.tracks.push(event.data);
+            setPlaylistTracks((prev) => [...prev, event.data]);
+          } else if (event.type === "progress") {
+            setProgress(event.data);
+          } else if (event.type === "error") {
+            throw new Error(event.data.message);
+          } else if (event.type === "complete") {
+            writeClientCache(cacheKey, collected);
+          }
         }
       }
-    }
-  }, []);
+    },
+    [applyCachedPlaylist],
+  );
 
   const handleConvert = useCallback(
     async (url?: string) => {
@@ -150,6 +200,13 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
       setPlaylistTracks([]);
 
       try {
+        const cacheKey = `resolve:${target}`;
+        const cached = readClientCache<ResolveResult>(cacheKey);
+        if (cached) {
+          setResult({ ...cached, cached: true });
+          return;
+        }
+
         const response = await fetch("/api/resolve", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -170,6 +227,7 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
         }
 
         const data = (await response.json()) as ResolveResult;
+        writeClientCache(cacheKey, data);
         setResult(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong");
@@ -207,10 +265,10 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-10">
-      <header className="mb-10 flex flex-col items-center text-center">
+    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-8 sm:py-10">
+      <header className="mb-8 sm:mb-10 flex flex-col items-center text-center">
         <Logo />
-        <h1 className="mt-6 text-3xl font-bold tracking-tight text-white">
+        <h1 className="mt-5 sm:mt-6 text-2xl sm:text-3xl font-bold tracking-tight text-white">
           Playlist Bridge
         </h1>
         <p className="mt-2 max-w-md text-sm text-zinc-400">
@@ -219,8 +277,8 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
         </p>
       </header>
 
-      <div className="glass mb-6 rounded-2xl p-4">
-        <div className="flex gap-2">
+      <div className="glass mb-6 rounded-2xl p-3 sm:p-4">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="url"
             value={inputUrl}
@@ -232,7 +290,7 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
           <button
             onClick={() => handleConvert()}
             disabled={loading}
-            className="rounded-xl bg-gradient-to-r from-[#1db954] to-[#1ed760] px-5 py-3 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-50"
+            className="rounded-xl bg-gradient-to-r from-[#1db954] to-[#1ed760] px-5 py-3 text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-50 sm:shrink-0"
           >
             {loading ? (
               <span className="inline-block h-4 w-4 spinner rounded-full border-2 border-black/30 border-t-black" />
@@ -250,40 +308,37 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
       )}
 
       {result && (
-        <div className="glass mb-6 rounded-2xl p-6">
-          <div className="flex gap-4">
-            {result.artwork && (
-              <img
-                src={result.artwork}
-                alt=""
-                className="h-24 w-24 shrink-0 rounded-xl object-cover shadow-lg"
-              />
-            )}
+        <div className="glass mb-6 rounded-2xl p-4 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-4">
+            <Artwork src={result.artwork} alt={result.title} size="md" />
             <div className="min-w-0 flex-1">
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold text-white break-words">
                     {result.title}
                   </h2>
                   {result.artist && (
-                    <p className="text-sm text-zinc-400">{result.artist}</p>
+                    <p className="text-sm text-zinc-400 break-words">
+                      {result.artist}
+                    </p>
                   )}
                   <p className="mt-1 text-xs capitalize text-zinc-500">
                     {result.linkType}
                   </p>
+                  <CacheNote cached={result.cached} />
                 </div>
                 <QualityBadge quality={result.linkQuality} />
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {result.spotify && (
                   <a
                     href={result.spotify.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#1db954]/20 px-4 py-2 text-sm font-medium text-[#1ed760] transition hover:bg-[#1db954]/30"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1db954]/20 px-4 py-2.5 text-sm font-medium text-[#1ed760] transition hover:bg-[#1db954]/30"
                   >
-                    <SpotifyIcon className="h-4 w-4" />
+                    <SpotifyIcon className="h-4 w-4 shrink-0" />
                     Open on Spotify
                   </a>
                 )}
@@ -292,9 +347,9 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
                     href={result.apple.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#fc3c44]/20 px-4 py-2 text-sm font-medium text-[#ff375f] transition hover:bg-[#fc3c44]/30"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#fc3c44]/20 px-4 py-2.5 text-sm font-medium text-[#ff375f] transition hover:bg-[#fc3c44]/30"
                   >
-                    <AppleMusicIcon className="h-4 w-4" />
+                    <AppleMusicIcon className="h-4 w-4 shrink-0" />
                     Open on Apple Music
                   </a>
                 )}
@@ -305,24 +360,26 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
           {shareUrl && (
             <div className="mt-5 border-t border-white/10 pt-4">
               <p className="mb-2 text-xs text-zinc-500">Share link</p>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   readOnly
                   value={shareUrl}
-                  className="flex-1 truncate rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300"
+                  className="min-w-0 flex-1 truncate rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300"
                 />
-                <button
-                  onClick={handleCopy}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5"
-                >
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5"
-                >
-                  Share
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopy}
+                    className="flex-1 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 sm:flex-none"
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="flex-1 rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 sm:flex-none"
+                  >
+                    Share
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -330,22 +387,21 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
       )}
 
       {playlistMeta && (
-        <div className="glass mb-6 rounded-2xl p-6">
-          <div className="mb-4 flex items-center gap-4">
-            {playlistMeta.artwork && (
-              <img
-                src={playlistMeta.artwork}
-                alt=""
-                className="h-16 w-16 rounded-xl object-cover"
-              />
-            )}
-            <div>
-              <h2 className="text-lg font-semibold text-white">
+        <div className="glass mb-6 rounded-2xl p-4 sm:p-6">
+          <div className="mb-4 flex items-center gap-3 sm:gap-4">
+            <Artwork
+              src={playlistMeta.artwork}
+              alt={playlistMeta.title}
+              size="lg"
+            />
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-white break-words">
                 {playlistMeta.title}
               </h2>
               <p className="text-sm text-zinc-400">
                 {progress.resolved} / {progress.total} tracks resolved
               </p>
+              <CacheNote cached={playlistMeta.cached} />
             </div>
           </div>
 
@@ -361,7 +417,7 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
             />
           </div>
 
-          <div className="max-h-96 space-y-2 overflow-y-auto">
+          <div className="max-h-96 space-y-2 overflow-y-auto overscroll-contain">
             {playlistTracks.map((track, i) => (
               <div
                 key={`${track.title}-${i}`}
@@ -405,15 +461,15 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
 
           {shareUrl && (
             <div className="mt-4 border-t border-white/10 pt-4">
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   readOnly
                   value={shareUrl}
-                  className="flex-1 truncate rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300"
+                  className="min-w-0 flex-1 truncate rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-300"
                 />
                 <button
                   onClick={handleCopy}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5"
+                  className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 sm:shrink-0"
                 >
                   {copied ? "Copied!" : "Copy"}
                 </button>

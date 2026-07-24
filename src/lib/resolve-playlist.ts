@@ -1,10 +1,21 @@
+import {
+  loadCachedPlaylist,
+  saveCachedPlaylist,
+  streamCachedPlaylist,
+  getCachedResolve,
+} from "./cache";
 import { parseMusicUrl } from "./parse-url";
 import { fetchApplePlaylist } from "./playlist/apple";
 import { fetchSpotifyPlaylist } from "./playlist/spotify";
-import { resolveTrackByMetadata, resolveUrl } from "./resolve";
-import type { LinkQuality, PlaylistEvent, PlatformLink } from "./types";
+import { resolveTrackByMetadata } from "./resolve";
+import type {
+  CachedPlaylist,
+  LinkQuality,
+  PlatformLink,
+  PlaylistEvent,
+} from "./types";
 
-export async function* resolvePlaylistStream(
+async function* resolvePlaylistUncached(
   rawUrl: string,
 ): AsyncGenerator<PlaylistEvent> {
   const parsed = parseMusicUrl(rawUrl);
@@ -46,7 +57,7 @@ export async function* resolvePlaylistStream(
       try {
         if (track.sourceUrl) {
           try {
-            const result = await resolveUrl(track.sourceUrl);
+            const result = await getCachedResolve(track.sourceUrl);
             spotify = result.spotify;
             apple = result.apple;
             linkQuality = result.linkQuality;
@@ -97,5 +108,37 @@ export async function* resolvePlaylistStream(
           error instanceof Error ? error.message : "Failed to resolve playlist",
       },
     };
+  }
+}
+
+export async function* resolvePlaylistStream(
+  rawUrl: string,
+): AsyncGenerator<PlaylistEvent> {
+  const cached = await loadCachedPlaylist(rawUrl);
+  if (cached) {
+    yield* streamCachedPlaylist(cached);
+    return;
+  }
+
+  const collected: CachedPlaylist = {
+    metadata: {
+      title: "",
+      totalTracks: 0,
+      sourceService: "spotify",
+      sourceUrl: rawUrl,
+    },
+    tracks: [],
+  };
+
+  for await (const event of resolvePlaylistUncached(rawUrl)) {
+    if (event.type === "start") {
+      collected.metadata = event.data;
+    } else if (event.type === "track") {
+      collected.tracks.push(event.data);
+    } else if (event.type === "complete") {
+      await saveCachedPlaylist(rawUrl, collected);
+    }
+
+    yield event;
   }
 }

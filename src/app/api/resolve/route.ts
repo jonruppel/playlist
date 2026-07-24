@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { getCachedResolve } from "@/lib/cache";
 import {
   PLAYLIST_USE_STREAM,
-  resolveUrl,
   UrlParseError,
 } from "@/lib/resolve";
 
@@ -14,8 +14,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing url" }, { status: 400 });
     }
 
-    const result = await resolveUrl(url);
-    return NextResponse.json(result);
+    const result = await getCachedResolve(url);
+    return NextResponse.json(result, {
+      headers: result.cached
+        ? { "X-Cache": "HIT" }
+        : { "X-Cache": "MISS" },
+    });
   } catch (error) {
     if (error instanceof UrlParseError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

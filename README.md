@@ -72,7 +72,14 @@ Streams NDJSON events for playlist resolution:
 - `complete` — done
 - `error` — failure message
 
-## Resolution Strategy
+## Caching
+
+Resolved links are cached for 30 days so repeat visits to the same Bridge link skip external lookups:
+
+- **Server cache** — Next.js Data Cache for singles and full playlists
+- **Browser cache** — `sessionStorage` for instant reloads in the same tab
+
+Cached results show a subtle “Loaded from saved result” note.
 
 No official Spotify or Apple Music APIs. Uses free/public sources:
 
