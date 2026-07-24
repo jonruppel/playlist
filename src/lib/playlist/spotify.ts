@@ -134,3 +134,29 @@ export async function fetchSpotifyPlaylist(url: string): Promise<{
 
   throw new Error("Could not parse Spotify playlist embed");
 }
+
+export async function fetchSpotifyPlaylistPreview(url: string): Promise<{
+  title: string;
+  artwork?: string;
+}> {
+  const embedUrl = buildEmbedUrl(url);
+  const html = await fetchText(embedUrl);
+
+  const nextEntity = extractNextData(html);
+  if (nextEntity) {
+    return {
+      title: nextEntity.name ?? nextEntity.title ?? "Spotify Playlist",
+      artwork: nextEntity.coverArt?.sources?.[0]?.url,
+    };
+  }
+
+  const legacy = extractLegacyJson(html);
+  if (legacy) {
+    return {
+      title: legacy.name ?? "Spotify Playlist",
+      artwork: legacy.images?.[0]?.url,
+    };
+  }
+
+  throw new Error("Could not parse Spotify playlist embed");
+}

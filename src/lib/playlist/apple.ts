@@ -85,3 +85,20 @@ export async function fetchApplePlaylist(url: string): Promise<{
     tracks,
   };
 }
+
+export async function fetchApplePlaylistPreview(url: string): Promise<{
+  title: string;
+  artwork?: string;
+}> {
+  const html = await fetchText(url);
+  const schema = extractJsonLd(html);
+
+  if (!schema) {
+    throw new Error("Could not parse Apple Music playlist metadata");
+  }
+
+  return {
+    title: schema.name ?? "Apple Music Playlist",
+    artwork: normalizeArtwork(schema.image),
+  };
+}

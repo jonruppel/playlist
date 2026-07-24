@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import BridgeApp from "@/components/BridgeApp";
+import {
+  buildShareMetadata,
+  getSharePreview,
+} from "@/lib/link-metadata";
 
 export async function generateMetadata({
   searchParams,
@@ -7,7 +11,7 @@ export async function generateMetadata({
   searchParams: Promise<{ url?: string }>;
 }): Promise<Metadata> {
   const params = await searchParams;
-  const sourceUrl = params.url;
+  const sourceUrl = params.url?.trim();
 
   if (!sourceUrl) {
     return {
@@ -18,29 +22,9 @@ export async function generateMetadata({
   }
 
   try {
-    const base =
-      process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, "") ??
-      "http://localhost:3000";
-    const response = await fetch(`${base}/api/resolve`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: sourceUrl }),
-      next: { revalidate: 3600 },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return {
-        title: `${data.title}${data.artist ? ` — ${data.artist}` : ""} | Playlist Bridge`,
-        description: `Listen on Spotify and Apple Music: ${data.title}`,
-        openGraph: {
-          title: data.title,
-          description: data.artist
-            ? `${data.artist} on Spotify & Apple Music`
-            : "Cross-platform music link",
-          images: data.artwork ? [{ url: data.artwork }] : undefined,
-        },
-      };
+    const preview = await getSharePreview(sourceUrl);
+    if (preview) {
+      return buildShareMetadata(preview, sourceUrl);
     }
   } catch {
     // fall through to default metadata
