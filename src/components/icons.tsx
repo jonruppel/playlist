@@ -11,22 +11,16 @@ export function SpotifyIcon({ className }: { className?: string }) {
   );
 }
 
-/** Classic Apple logo PNG, tinted via currentColor (Apple Music pink). */
+/** Apple Music double-note mark as a precolored PNG. */
 export function AppleMusicIcon({ className }: { className?: string }) {
   return (
-    <span
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/icons/apple-music.png"
+      alt=""
       aria-hidden
-      className={`inline-block shrink-0 bg-current ${className ?? "h-6 w-6"}`}
-      style={{
-        maskImage: "url(/icons/apple.png)",
-        WebkitMaskImage: "url(/icons/apple.png)",
-        maskRepeat: "no-repeat",
-        WebkitMaskRepeat: "no-repeat",
-        maskPosition: "center",
-        WebkitMaskPosition: "center",
-        maskSize: "contain",
-        WebkitMaskSize: "contain",
-      }}
+      className={`inline-block shrink-0 object-contain ${className ?? "h-6 w-6"}`}
+      draggable={false}
     />
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import EmbedPlayer, { type EmbedSource } from "@/components/EmbedPlayer";
 import { AppleMusicIcon, SpotifyIcon } from "@/components/icons";
@@ -58,23 +59,29 @@ function Artwork({
   );
 }
 
-function Logo() {
+function Logo({ onClick }: { onClick?: () => void }) {
   return (
-    <div className="flex items-center gap-2.5 sm:gap-3">
-      <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#1db954]/20 text-[#1ed760]">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-2.5 rounded-2xl p-1 transition hover:bg-white/5 sm:gap-3"
+      aria-label="Playlist Bridge home"
+      title="Home"
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1db954]/20 text-[#1ed760] sm:h-11 sm:w-11">
         <SpotifyIcon className="h-5 w-5 sm:h-6 sm:w-6" />
       </div>
       <div className="flex flex-col items-center gap-1 px-1">
-        <div className="h-0.5 w-8 sm:w-10 rounded-full bg-gradient-to-r from-[#1ed760] to-[#ff375f]" />
+        <div className="h-0.5 w-8 rounded-full bg-gradient-to-r from-[#1ed760] to-[#ff375f] sm:w-10" />
         <div className="flex gap-1">
           <div className="h-1.5 w-1.5 rounded-full bg-[#1ed760]" />
           <div className="h-1.5 w-1.5 rounded-full bg-[#ff375f]" />
         </div>
       </div>
-      <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-[#fc3c44]/20 text-[#ff375f]">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fc3c44]/20 sm:h-11 sm:w-11">
         <AppleMusicIcon className="h-5 w-5 sm:h-6 sm:w-6" />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -88,6 +95,7 @@ interface BridgeAppProps {
 }
 
 export default function BridgeApp({ initialUrl }: BridgeAppProps) {
+  const router = useRouter();
   const [inputUrl, setInputUrl] = useState(initialUrl ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,7 +156,15 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
     setCopied(false);
     setPlaylistResolving(false);
     setLoading(false);
-  }, []);
+
+    // Drop /link?url=... so a refresh doesn't re-load the old playlist
+    if (typeof window !== "undefined") {
+      const { pathname, search } = window.location;
+      if (pathname !== "/" || search) {
+        router.replace("/");
+      }
+    }
+  }, [router]);
 
   const applyCachedPlaylist = useCallback((cached: CachedPlaylist) => {
     setPlaylistMeta({ ...cached.metadata, cached: true });
@@ -323,7 +339,7 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-8 sm:py-10">
       <header className="mb-8 sm:mb-10 flex flex-col items-center text-center">
-        <Logo />
+        <Logo onClick={resetAll} />
         <h1 className="mt-5 sm:mt-6 text-2xl sm:text-3xl font-bold tracking-tight text-white">
           Playlist Bridge
         </h1>
@@ -344,15 +360,12 @@ export default function BridgeApp({ initialUrl }: BridgeAppProps) {
               placeholder="Paste a Spotify or Apple Music URL…"
               className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pr-11 pl-4 text-sm text-white placeholder:text-zinc-500 focus:border-[#1db954]/50 focus:outline-none focus:ring-1 focus:ring-[#1db954]/30"
             />
-            {inputUrl && (
+            {(inputUrl || hasResult) && (
               <button
                 type="button"
-                onClick={() => {
-                  setInputUrl("");
-                  setError(null);
-                }}
+                onClick={resetAll}
                 className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white"
-                aria-label="Clear URL"
+                aria-label="Clear and go home"
                 title="Clear"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
