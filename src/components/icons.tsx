@@ -11,7 +11,10 @@ export function SpotifyIcon({ className }: { className?: string }) {
   );
 }
 
-/** Apple Music double-note mark as a precolored PNG. */
+/**
+ * Official Apple Music icon (Wikimedia Commons: File:Apple_Music_icon.svg).
+ * Served as a PNG for reliable rendering at small sizes.
+ */
 export function AppleMusicIcon({ className }: { className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -19,7 +22,7 @@ export function AppleMusicIcon({ className }: { className?: string }) {
       src="/icons/apple-music.png"
       alt=""
       aria-hidden
-      className={`inline-block shrink-0 object-contain ${className ?? "h-6 w-6"}`}
+      className={`inline-block shrink-0 rounded-[22%] object-contain ${className ?? "h-6 w-6"}`}
       draggable={false}
     />
   );

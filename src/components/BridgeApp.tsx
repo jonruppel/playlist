@@ -78,9 +78,7 @@ function Logo({ onClick }: { onClick?: () => void }) {
           <div className="h-1.5 w-1.5 rounded-full bg-[#ff375f]" />
         </div>
       </div>
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fc3c44]/20 sm:h-11 sm:w-11">
-        <AppleMusicIcon className="h-5 w-5 sm:h-6 sm:w-6" />
-      </div>
+      <AppleMusicIcon className="h-10 w-10 sm:h-11 sm:w-11" />
     </button>
   );
 }
